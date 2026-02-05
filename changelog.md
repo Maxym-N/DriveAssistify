@@ -3,7 +3,9 @@
 ## Version 1.8
 - Features: Added full GRUB installation support for BIOS/MBR and UEFI systems, with separate functions for each mode.
 - Features: Added automatic disk list refresh after all disk operations complete, eliminating the need for manual refresh.
+- Features: Added support for quick format and full zeroing options for NTFS filesystems in both partition creation and formatting dialogs.
 - Improvements: Enhanced partition creation with an optional alignment setting that allows users to align partitions to 1 MiB boundaries (2048 sectors) for optimal compatibility with modern storage devices.
+- Improvements: Enhanced partition creation for NVMe and GPT disks with dual partition detection mechanism (lsblk + parted fallback) for maximum reliability.
 - Improvements: Terminal output now shows step-by-step progress for GRUB installation (mounting, grub-install, unmounting) and reports errors clearly.
 - Improvements: Partition rename dialog now displays the current label and pre-fills it in the input field, making it easy to edit existing labels.
 - Improvements: Enhanced FAT32/vfat label support with automatic fallback between fatlabel, dosfslabel, mlabel, and blkid tools for maximum compatibility.
@@ -12,6 +14,9 @@
 - Improvements: Free space calculation during partition creation and resize operations now displays correctly in real-time as users adjust size values.
 - Improvements: Mount and unmount operations now properly display "Command Finished" status in terminal window title when operations complete.
 - Improvements: All mount and unmount commands now use sudo for proper privilege elevation, ensuring reliable execution.
+- Improvements: Added udevadm settle synchronization after filesystem creation for improved stability on NVMe and SSD devices.
+- Bug Fixes: Fixed partition deletion destroying entire GPT partition table on SSDs by replacing fdisk with parted for GPT-compatible partition removal.
+- Bug Fixes: Fixed partition creation failures on NVMe drives and GPT disks where newly created partitions were not detected, causing "No such file or directory" errors during filesystem creation.
 - Bug Fixes: Fixed free space display showing "0 MiB" during partition creation by properly utilizing orig_free variable instead of recalculating from start/end positions.
 - Bug Fixes: Fixed all label_free calculations in on_entry_gib_changed and on_entry_sectors_changed functions to use correct base values.
 - Bug Fixes: Partition resize now works correctly.
@@ -21,8 +26,11 @@
 - Code Quality: Added proper forward declarations for static callback functions (on_entry_gib_changed, on_entry_sectors_changed, on_entry_start_changed, on_entry_end_changed).
 - Code Quality: Implemented numerous additional optimizations, bug fixes, and code improvements throughout the application.
 - Compatibility: Partition alignment is now optional and configurable via checkbox, with 1 MiB alignment recommended but not enforced.
+- Compatibility: Partition deletion now automatically detects partition table type (GPT vs MBR) and uses appropriate tool (parted for GPT, fdisk for MBR).
+- Compatibility: Enhanced compatibility with modern NVMe SSDs through improved partition detection and udev synchronization.
 - UI/UX: Rename partition dialog now shows partition name, filesystem type, and current label, with the label pre-selected for easy editing.
 - UI/UX: Added "Align partition (start at 1 MiB boundary, recommended)" checkbox in partition creation dialog for user control over alignment behavior.
+- UI/UX: NTFS formatting now offers two distinct options: "ntfs (quick format)" for fast formatting and "ntfs (full zeroing)" for secure data erasure.
 
 ## Version 1.7
 - Improvements: Disk area analysis now works reliably with exFAT and other filesystems not recognized by parted, by automatically detecting filesystem types using blkid when necessary.

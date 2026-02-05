@@ -3,7 +3,7 @@
  *
  * Version: 1.8
  * 
- * Copyright (C) 2024–2025 Maksym Nazar.
+ * Copyright (C) 2024–2026 Maksym Nazar.
  * Created with the assistance of ChatGPT, Perplexity, and Claude.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -4861,7 +4861,7 @@ void create_termsofuse_window(GtkWidget *parent) {
 "7. Compliance with Laws:\n"
 "You are responsible for complying with all applicable local, state, national, and international laws in connection with your use of the Program.\n\n"
 "8. Copyright:\n"
-"Copyright (C) 2024–2025 Maksym Nazar.\n"
+"Copyright (C) 2024–2026 Maksym Nazar.\n"
 "Created with the assistance of ChatGPT, Perplexity, and Claude.\n"
 "This work is licensed under the GNU General Public License (GPL) Version 3.0.\n\n"
 "9. Contact:\n"
@@ -5014,7 +5014,7 @@ void create_license_window(GtkWidget *parent) {
 "If you develop a new program, and you want it to be of the greatest possible use to the public, the best way to achieve this is to make it free software which everyone can redistribute and change under these terms.\n\n"
 "To do so, attach the following notices to the program. It is safest to attach them to the start of each source file to most effectively state the exclusion of warranty; and each file should have at least the “copyright” line and a pointer to where the full notice is found.\n\n"
 "DriveAssistify: a utility for managing disk operations.\n"
-"Copyright (C) 2024–2025 Maksym Nazar.\n"
+"Copyright (C) 2024–2026 Maksym Nazar.\n"
 "Created with the assistance of ChatGPT, Perplexity, and Claude.\n\n"
 "This program is free software: you can redistribute it and/or modify\n"
 "it under the terms of the GNU General Public License as published by\n"

@@ -4,7 +4,7 @@ DriveAssistify: a utility for managing disk operations.
 
 Version: 1.8
 
-Copyright (C) 2024–2025 Maksym Nazar.
+Copyright (C) 2024–2026 Maksym Nazar.
 Created with the assistance of ChatGPT, Perplexity, and Claude.
 
 This program is free software: you can redistribute it and/or modify

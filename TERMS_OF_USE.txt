@@ -23,7 +23,7 @@ You may modify and distribute modified versions of the Program, provided you com
 You are responsible for complying with all applicable local, state, national, and international laws in connection with your use of the Program.
 
 8. Copyright:
-Copyright (C) 2024–2025 Maksym Nazar.
+Copyright (C) 2024–2026 Maksym Nazar.
 Created with the assistance of ChatGPT, Perplexity, and Claude.
 This work is licensed under the GNU General Public License (GPL) Version 3.0.
 
