@@ -48,24 +48,24 @@ INSTALLATION INSTRUCTIONS FOR DRIVEASSISTIFY
    Download the source code of DriveAssistify from the official repository or the provided location.
    If the source code is in a compressed format, extract it using:
 
-       tar -xvf driveassistify.tar.gz  (or use unzip for .zip archives)
+       tar -xvf DriveAssistify.tar.gz  (or use unzip for .zip archives)
 
 3. Compile the Program:
-   Open a terminal in the directory containing the `driveassistify.c` file. Run the following command:
+   Open a terminal in the directory containing the `DriveAssistify.c` file. Run the following command:
 
-       gcc driveassistify.c -o driveassistify $(pkg-config --cflags --libs gtk+-3.0 vte-2.91)
+       gcc DriveAssistify.c -o DriveAssistify $(pkg-config --cflags --libs gtk+-3.0 vte-2.91)
 
-   This will generate an executable binary file named `driveassistify`.
+   This will generate an executable binary file named `DriveAssistify`.
 
 4. Run the Program:
    After compiling the program, you can run it by specifying the correct path to the binary file.
    If placed in `/usr/local/bin`, you can run it with:
 
-       driveassistify
+       DriveAssistify
 
    If the binary is located elsewhere, specify the full or relative path, for example:
 
-       /path/to/driveassistify
+       /path/to/DriveAssistify
 
    To run the program from anywhere without specifying the full path, add its directory to the system's `$PATH` variable.
 
@@ -73,7 +73,7 @@ INSTALLATION INSTRUCTIONS FOR DRIVEASSISTIFY
    To uninstall DriveAssistify, remove the binary file from its installation directory.
    If installed in `/usr/local/bin`, run:
 
-       sudo rm /usr/local/bin/driveassistify
+       sudo rm /usr/local/bin/DriveAssistify
 
    If installed elsewhere, adjust the path accordingly.
 

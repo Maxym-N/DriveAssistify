@@ -24,7 +24,7 @@ You are responsible for complying with all applicable local, state, national, an
 
 8. Copyright:
 Copyright (C) 2024–2025 Maksym Nazar.
-Created with the assistance of ChatGPT.
+Created with the assistance of ChatGPT, Perplexity, and Claude.
 This work is licensed under the GNU General Public License (GPL) Version 3.0.
 
 9. Contact:
