@@ -175,6 +175,7 @@ void on_delete_partition_activate(GtkWidget *menuitem, gpointer user_data);
 void on_shred_fs_activate(GtkWidget *menuitem, gpointer user_data);
 void on_dd_erase_activate(GtkWidget *menuitem, gpointer user_data);
 void on_dd_multiple_erase_activate(GtkWidget *menuitem, gpointer user_data);
+void on_reset_windows_password_clicked(GtkWidget *menuitem, gpointer user_data);
 void clean_string(char *str);
 void create_termsofuse_window(GtkWidget *parent);
 void create_license_window(GtkWidget *parent);
@@ -2394,130 +2395,181 @@ void on_rename_partition_activate(GtkWidget *menuitem, gpointer user_data) {
     GtkTreeModel *model;
     GtkTreeIter iter;
     gchar *partition_name = NULL, *fstype = NULL;
-
     if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
         gtk_tree_model_get(model, &iter, COL_NAME, &partition_name, COL_FSTYPE, &fstype, -1);
-
         gchar *current_label = NULL;
         gchar *label_cmd = NULL;
-        
         if (g_strcmp0(fstype, "ext4") == 0 || g_strcmp0(fstype, "ext3") == 0 || g_strcmp0(fstype, "ext2") == 0) {
-            label_cmd = g_strdup_printf("blkid -s LABEL -o value /dev/%s 2>/dev/null", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "label=$( blkid -s LABEL -o value /dev/%s 2>/dev/null ); "
+                "if [ -z \"$label\" ]; then "
+                "  magic=$( sudo dd if=/dev/%s bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d ' \\n' ); "
+                "  if [ \"$magic\" = '53ef' ]; then "
+                "    label=$( sudo dd if=/dev/%s bs=1 skip=1144 count=16 2>/dev/null "
+                "      | tr -d '\\0' | sed 's/[[:space:]]*$//' ); "
+                "  fi; "
+                "fi; "
+                "echo \"$label\"",
+                partition_name, partition_name, partition_name, partition_name
+            );
         } else if (g_strcmp0(fstype, "ntfs") == 0) {
-            label_cmd = g_strdup_printf("blkid -s LABEL -o value /dev/%s 2>/dev/null", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "blkid -s LABEL -o value /dev/%s 2>/dev/null",
+                partition_name, partition_name
+            );
         } else if (g_strcmp0(fstype, "exfat") == 0) {
-            label_cmd = g_strdup_printf("blkid -s LABEL -o value /dev/%s 2>/dev/null", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "blkid -s LABEL -o value /dev/%s 2>/dev/null",
+                partition_name, partition_name
+            );
         } else if (g_strcmp0(fstype, "vfat") == 0 || g_strcmp0(fstype, "fat32") == 0 || g_strcmp0(fstype, "fat") == 0) {
-            label_cmd = g_strdup_printf("blkid -s LABEL -o value /dev/%s 2>/dev/null", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "label=$( sudo dd if=/dev/%s bs=512 count=1 2>/dev/null | "
+                "  dd bs=1 skip=71 count=11 2>/dev/null | tr -d '\\0' | sed 's/[[:space:]]*$//' ); "
+                "if [ -z \"$label\" ] || [ \"$label\" = 'NO NAME' ]; then "
+                "  label=$( sudo dd if=/dev/%s bs=512 count=1 2>/dev/null | "
+                "    dd bs=1 skip=43 count=11 2>/dev/null | tr -d '\\0' | sed 's/[[:space:]]*$//' ); "
+                "fi; "
+                "if [ -z \"$label\" ] || [ \"$label\" = 'NO NAME' ]; then "
+                "  blkid -s LABEL -o value /dev/%s 2>/dev/null; "
+                "else echo \"$label\"; fi",
+                partition_name, partition_name, partition_name, partition_name
+            );
         } else if (g_strcmp0(fstype, "xfs") == 0) {
-            label_cmd = g_strdup_printf("xfs_admin -l /dev/%s 2>/dev/null | cut -d'\"' -f2", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "label=$( xfs_admin -l /dev/%s 2>/dev/null | cut -d'\"' -f2 ); "
+                "if [ -z \"$label\" ]; then "
+                "  magic=$( sudo dd if=/dev/%s bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \\n' ); "
+                "  if [ \"$magic\" = '58465342' ]; then "
+                "    label=$( sudo dd if=/dev/%s bs=1 skip=108 count=12 2>/dev/null "
+                "      | tr -d '\\0' | sed 's/[[:space:]]*$//' ); "
+                "  fi; "
+                "fi; "
+                "echo \"$label\"",
+                partition_name, partition_name, partition_name, partition_name
+            );
         } else if (g_strcmp0(fstype, "btrfs") == 0) {
-            label_cmd = g_strdup_printf("btrfs filesystem label /dev/%s 2>/dev/null || echo ''", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "label=$( btrfs filesystem label /dev/%s 2>/dev/null ); "
+                "if [ -z \"$label\" ]; then "
+                "  magic=$( sudo dd if=/dev/%s bs=1 skip=65600 count=8 2>/dev/null ); "
+                "  if [ \"$magic\" = '_BHRfS_M' ]; then "
+                "    label=$( sudo dd if=/dev/%s bs=1 skip=65835 count=256 2>/dev/null "
+                "      | tr -d '\\0' | sed 's/[[:space:]]*$//' ); "
+                "  fi; "
+                "fi; "
+                "echo \"$label\"",
+                partition_name, partition_name, partition_name, partition_name
+            );
         } else {
-            label_cmd = g_strdup_printf("blkid -s LABEL -o value /dev/%s 2>/dev/null", partition_name);
+            label_cmd = g_strdup_printf(
+                "sudo blockdev --flushbufs /dev/%s 2>/dev/null; "
+                "blkid -s LABEL -o value /dev/%s 2>/dev/null",
+                partition_name, partition_name
+            );
         }
-        
         if (label_cmd) {
             FILE *fp = popen(label_cmd, "r");
             if (fp) {
                 char label_buf[256] = {0};
                 if (fgets(label_buf, sizeof(label_buf), fp)) {
                     g_strstrip(label_buf);
-                    if (strlen(label_buf) > 0) {
+                    if (strlen(label_buf) > 0)
                         current_label = g_strdup(label_buf);
-                    }
                 }
                 pclose(fp);
             }
             g_free(label_cmd);
         }
-
         GtkWidget *dialog = gtk_dialog_new_with_buttons(
-            "Rename Partition",
-            NULL,
-            GTK_DIALOG_MODAL,
+            "Rename Partition", NULL, GTK_DIALOG_MODAL,
             "_Cancel", GTK_RESPONSE_CANCEL,
             "_Rename", GTK_RESPONSE_ACCEPT,
             NULL
         );
-        
         gtk_window_set_default_size(GTK_WINDOW(dialog), 400, 140);
-        
         GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-        
         gchar *info_text;
-        if (current_label && strlen(current_label) > 0) {
+        if (current_label && strlen(current_label) > 0)
             info_text = g_strdup_printf("Partition: %s (%s)\nCurrent label: %s", partition_name, fstype, current_label);
-        } else {
+        else
             info_text = g_strdup_printf("Partition: %s (%s)\nCurrent label: (empty)", partition_name, fstype);
-        }
-        GtkWidget *info_label = gtk_label_new(info_text);
-        gtk_label_set_xalign(GTK_LABEL(info_label), 0.0);
-        gtk_box_pack_start(GTK_BOX(content_area), info_label, FALSE, FALSE, 10);
+        GtkWidget *info_label_w = gtk_label_new(info_text);
+        gtk_label_set_xalign(GTK_LABEL(info_label_w), 0.0);
+        gtk_box_pack_start(GTK_BOX(content_area), info_label_w, FALSE, FALSE, 10);
         g_free(info_text);
-        
         GtkWidget *entry = gtk_entry_new();
         gtk_entry_set_max_length(GTK_ENTRY(entry), 16);
         gtk_entry_set_width_chars(GTK_ENTRY(entry), 24);
-        
         if (current_label && strlen(current_label) > 0) {
             gtk_entry_set_text(GTK_ENTRY(entry), current_label);
             gtk_editable_select_region(GTK_EDITABLE(entry), 0, -1);
         }
-        
         gtk_box_pack_start(GTK_BOX(content_area), entry, FALSE, FALSE, 5);
         gtk_widget_show_all(dialog);
-
         gint response = gtk_dialog_run(GTK_DIALOG(dialog));
         gchar *new_label = NULL;
-        if (response == GTK_RESPONSE_ACCEPT) {
+        if (response == GTK_RESPONSE_ACCEPT)
             new_label = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
-        }
         gtk_widget_destroy(dialog);
-
         if (new_label && strlen(new_label) > 0) {
             gchar *cmd = NULL;
             if (g_strcmp0(fstype, "ext4") == 0 || g_strcmp0(fstype, "ext3") == 0 || g_strcmp0(fstype, "ext2") == 0) {
                 cmd = g_strdup_printf(
-                    "sudo e2label %%s '%s' && echo 'Label changed (ext2/3/4)' || echo 'ERROR: Failed to change ext label'",
+                    "sudo e2label %%s '%s' && "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null && "
+                    "echo 'Label changed (ext2/3/4)' || echo 'ERROR: Failed to change ext label'",
                     new_label
                 );
             } else if (g_strcmp0(fstype, "ntfs") == 0) {
                 cmd = g_strdup_printf(
-                    "sudo ntfslabel --force %%s '%s' >/dev/null 2>&1 && echo 'Label changed (NTFS)' || echo 'ERROR: Failed to change NTFS label'",
+                    "sudo ntfslabel --force %%s '%s' >/dev/null 2>&1 && "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null && "
+                    "echo 'Label changed (NTFS)' || echo 'ERROR: Failed to change NTFS label'",
                     new_label
                 );
             } else if (g_strcmp0(fstype, "exfat") == 0) {
                 cmd = g_strdup_printf(
-                    "sudo exfatlabel %%s '%s' && echo 'Label changed (exFAT)' || echo 'ERROR: Failed to change exFAT label'",
+                    "sudo exfatlabel %%s '%s' && "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null && "
+                    "echo 'Label changed (exFAT)' || echo 'ERROR: Failed to change exFAT label'",
                     new_label
                 );
             } else if (g_strcmp0(fstype, "vfat") == 0 || g_strcmp0(fstype, "fat32") == 0 || g_strcmp0(fstype, "fat") == 0) {
                 cmd = g_strdup_printf(
                     "{ sudo dosfslabel %%s '%s' 2>&1 || sudo fatlabel %%s '%s' 2>&1; } | "
-                    "grep -v 'differences\\|Differences\\|offset\\|Not automatically\\|backup' && "
-                    "echo 'Label changed (FAT)' || echo 'Label changed (FAT)'",
+                    "grep -v 'differences\\|Differences\\|offset\\|Not automatically\\|backup'; "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null; "
+                    "echo 'Label changed (FAT)'",
                     new_label, new_label
                 );
             } else if (g_strcmp0(fstype, "xfs") == 0) {
                 cmd = g_strdup_printf(
-                    "sudo xfs_admin -L '%s' %%s && echo 'Label changed (XFS)' || echo 'ERROR: Failed to change XFS label'",
+                    "sudo xfs_admin -L '%s' %%s && "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null && "
+                    "echo 'Label changed (XFS)' || echo 'ERROR: Failed to change XFS label'",
                     new_label
                 );
             } else if (g_strcmp0(fstype, "btrfs") == 0) {
                 cmd = g_strdup_printf(
-                    "sudo btrfs filesystem label %%s '%s' && echo 'Label changed (Btrfs)' || echo 'ERROR: Failed to change Btrfs label'",
+                    "sudo btrfs filesystem label %%s '%s' && "
+                    "sudo blockdev --flushbufs /dev/%%s 2>/dev/null && "
+                    "echo 'Label changed (Btrfs)' || echo 'ERROR: Failed to change Btrfs label'",
                     new_label
                 );
             } else {
                 cmd = g_strdup_printf("echo 'Unsupported or unknown filesystem: %s'", fstype ? fstype : "unknown");
             }
-
             run_command_in_terminal(tree_view, cmd);
             g_free(cmd);
             g_free(new_label);
         }
-
         if (current_label) g_free(current_label);
         g_free(partition_name);
         g_free(fstype);
@@ -2670,8 +2722,8 @@ void on_mkfs_activate(GtkWidget *menuitem, gpointer user_data) {
     GtkWidget *cluster_label = gtk_label_new("Cluster / Block size:");
     GtkWidget *cluster_combo = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(cluster_combo), "default");
-    const int cluster_options[] = {512,1024,2048,4096,8192,16384};
-    for (int i = 0; i < 6; i++) {
+    const int cluster_options[] = {512,1024,2048,4096,8192,16384,32768,65536};
+    for (int i = 0; i < 8; i++) {
         gchar tmp[16];
         g_snprintf(tmp, sizeof(tmp), "%d", cluster_options[i]);
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(cluster_combo), tmp);
@@ -2820,7 +2872,7 @@ void on_mkfs_activate(GtkWidget *menuitem, gpointer user_data) {
                 is_ntfs_full) {
                 g_timeout_add(12000, refresh_disk_list_delayed, g_object_ref(tree_view));
             } else {
-                g_timeout_add(2000, refresh_disk_list_delayed, g_object_ref(tree_view));
+                g_timeout_add(3850, refresh_disk_list_delayed, g_object_ref(tree_view));
             }
         }
         g_free(mkfs_cmd);
@@ -4466,6 +4518,368 @@ void on_dd_multiple_erase_activate(GtkWidget *menuitem, gpointer user_data) {
     }
 }
 
+void on_reset_windows_password_clicked(GtkWidget *button, gpointer user_data) {
+    GtkTreeView *tree = GTK_TREE_VIEW(user_data);
+    GtkTreeModel *model = gtk_tree_view_get_model(tree);
+    GtkTreeSelection *selection = gtk_tree_view_get_selection(tree);
+    GtkTreeIter iter;
+
+    if (!gtk_tree_selection_get_selected(selection, &model, &iter)) {
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "Please select a partition in the list.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+
+    gchar *col0 = NULL;
+    gtk_tree_model_get(model, &iter, 0, &col0, -1);
+
+    if (!col0 || strlen(col0) == 0) {
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "Cannot read selected row data.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        g_free(col0);
+        return;
+    }
+
+    gchar *part_path = NULL;
+
+    if (col0[0] == '/') {
+        part_path = g_strdup(col0);
+    } else {
+        gchar *lsblk_cmd = g_strdup_printf(
+            "lsblk -ln -o NAME,TYPE 2>/dev/null | awk '$2==\"part\"{print \"/dev/\" $1}'");
+        FILE *lf = popen(lsblk_cmd, "r");
+        g_free(lsblk_cmd);
+        if (lf) {
+            char line[256];
+            while (fgets(line, sizeof(line), lf)) {
+                line[strcspn(line, "\n")] = '\0';
+                const char *base = strrchr(line, '/');
+                if (base) base++;
+                else base = line;
+                if (g_str_has_suffix(base, col0) || g_strcmp0(base, col0) == 0) {
+                    part_path = g_strdup(line);
+                    break;
+                }
+            }
+            pclose(lf);
+        }
+    }
+
+    g_free(col0);
+
+    if (!part_path) {
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "Cannot determine partition device path.\n"
+            "Please select a partition row in the list.");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        return;
+    }
+
+    gchar *check_cmd = g_strdup_printf(
+        "lsblk -ln -o TYPE %s 2>/dev/null | head -1", part_path);
+    FILE *cf = popen(check_cmd, "r");
+    g_free(check_cmd);
+    gchar *dev_type = NULL;
+    if (cf) {
+        char tmp[64] = {0};
+        if (fgets(tmp, sizeof(tmp), cf)) {
+            tmp[strcspn(tmp, "\n")] = '\0';
+            dev_type = g_strdup(g_strstrip(tmp));
+        }
+        pclose(cf);
+    }
+
+    if (!dev_type || g_strcmp0(dev_type, "part") != 0) {
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "Selected device '%s' is not a partition (type: %s).\n"
+            "Please select a specific partition, not a whole disk.",
+            part_path, dev_type ? dev_type : "unknown");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        g_free(dev_type);
+        g_free(part_path);
+        return;
+    }
+    g_free(dev_type);
+
+    if (system("which chntpw > /dev/null 2>&1") != 0) {
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "The 'chntpw' utility is not installed.\n"
+            "Install it with:\n\n  sudo apt install chntpw");
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        g_free(part_path);
+        return;
+    }
+
+    gchar *mount_point = g_strdup("/tmp/winpart_mnt_chntpw");
+
+    gchar *umount_pre = g_strdup_printf(
+        "sudo umount %s 2>/dev/null; sudo mkdir -p %s",
+        mount_point, mount_point);
+    system(umount_pre);
+    g_free(umount_pre);
+
+    gchar *mount_cmd = g_strdup_printf(
+        "sudo mount -t ntfs3   -o ro,uid=0,gid=0 %s %s 2>/dev/null || "
+        "sudo mount -t ntfs-3g -o ro,uid=0,gid=0 %s %s 2>/dev/null || "
+        "sudo mount -o ro %s %s 2>/dev/null",
+        part_path, mount_point,
+        part_path, mount_point,
+        part_path, mount_point);
+
+    int mount_ret = system(mount_cmd);
+    g_free(mount_cmd);
+
+    if (mount_ret != 0) {
+        gchar *fstype_buf = g_strdup("unknown");
+        {
+            gchar *blkid_cmd = g_strdup_printf(
+                "blkid -o value -s TYPE %s 2>/dev/null", part_path);
+            FILE *blkid_fp = popen(blkid_cmd, "r");
+            if (blkid_fp) {
+                char tmp[64] = {0};
+                if (fgets(tmp, sizeof(tmp), blkid_fp)) {
+                    tmp[strcspn(tmp, "\n")] = '\0';
+                    g_free(fstype_buf);
+                    fstype_buf = g_strdup(tmp);
+                }
+                pclose(blkid_fp);
+            }
+            g_free(blkid_cmd);
+        }
+
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "Failed to mount the partition.\n\n"
+            "Device    : %s\n"
+            "Filesystem: %s\n\n"
+            "Possible reasons:\n"
+            "• The partition is not NTFS (Windows requires NTFS)\n"
+            "• ntfs-3g is not installed: sudo apt install ntfs-3g\n"
+            "• The partition is already mounted elsewhere\n"
+            "• Windows hibernation is active (disable fast startup in Windows)",
+            part_path, fstype_buf);
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        g_free(fstype_buf);
+        g_free(mount_point);
+        g_free(part_path);
+        return;
+    }
+
+    gchar *find_cmd = g_strdup_printf(
+        "find %s -maxdepth 8 -iname 'SAM' 2>/dev/null "
+        "| grep -i 'system32/config/SAM'",
+        mount_point);
+
+    FILE *fp = popen(find_cmd, "r");
+    g_free(find_cmd);
+
+    GPtrArray *sam_paths = g_ptr_array_new_with_free_func(g_free);
+    if (fp) {
+        char line[1024];
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = '\0';
+            if (strlen(line) > 0)
+                g_ptr_array_add(sam_paths, g_strdup(line));
+        }
+        pclose(fp);
+    }
+
+    if (sam_paths->len == 0) {
+        gchar *umount_cmd = g_strdup_printf("sudo umount %s 2>/dev/null", mount_point);
+        system(umount_cmd);
+        g_free(umount_cmd);
+
+        GtkWidget *err = gtk_message_dialog_new(
+            NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "No Windows installation found on partition %s.\n\n"
+            "The file Windows/System32/config/SAM was not found.\n"
+            "Make sure you selected the correct Windows system partition\n"
+            "(usually the largest NTFS partition, not EFI/recovery).",
+            part_path);
+        gtk_dialog_run(GTK_DIALOG(err));
+        gtk_widget_destroy(err);
+        g_ptr_array_free(sam_paths, TRUE);
+        g_free(mount_point);
+        g_free(part_path);
+        return;
+    }
+
+    GtkWidget *sel_dialog = gtk_dialog_new_with_buttons(
+        "Select Windows Installation",
+        NULL,
+        GTK_DIALOG_MODAL,
+        "_Cancel", GTK_RESPONSE_CANCEL,
+        "_Select", GTK_RESPONSE_ACCEPT,
+        NULL
+    );
+    gtk_window_set_default_size(GTK_WINDOW(sel_dialog), 580, 320);
+    GtkWidget *content_area = gtk_dialog_get_content_area(GTK_DIALOG(sel_dialog));
+
+    gchar *info_text = g_strdup_printf(
+        "Found %u Windows installation(s) on %s.\n"
+        "Select the one whose password you want to reset:",
+        sam_paths->len, part_path);
+    GtkWidget *info_label = gtk_label_new(info_text);
+    g_free(info_text);
+    gtk_box_pack_start(GTK_BOX(content_area), info_label, FALSE, FALSE, 6);
+
+    GtkWidget *list_box = gtk_list_box_new();
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(list_box), GTK_SELECTION_SINGLE);
+
+    for (guint i = 0; i < sam_paths->len; i++) {
+        const gchar *sam_full = (gchar *)g_ptr_array_index(sam_paths, i);
+
+        const gchar *relative = sam_full + strlen(mount_point);
+        gchar *win_root = g_strdup(relative);
+
+        gchar *cut = g_strrstr(win_root, "/Windows/System32");
+        if (!cut) cut = g_strrstr(win_root, "/windows/System32");
+        if (!cut) cut = g_strrstr(win_root, "/WINDOWS/SYSTEM32");
+        if (cut) *cut = '\0';
+
+        gchar *row_text = g_strdup_printf("  %s  →  Windows at: %s%s",
+                                          part_path,
+                                          strlen(win_root) == 0 ? "/" : "",
+                                          win_root);
+        GtkWidget *row_label = gtk_label_new(row_text);
+        gtk_label_set_xalign(GTK_LABEL(row_label), 0.0f);
+
+        GtkWidget *row = gtk_list_box_row_new();
+        gtk_container_add(GTK_CONTAINER(row), row_label);
+        gtk_list_box_insert(GTK_LIST_BOX(list_box), row, -1);
+
+        g_free(row_text);
+        g_free(win_root);
+    }
+
+    GtkListBoxRow *first_row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(list_box), 0);
+    if (first_row)
+        gtk_list_box_select_row(GTK_LIST_BOX(list_box), first_row);
+
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_set_size_request(scroll, -1, 160);
+    gtk_container_add(GTK_CONTAINER(scroll), list_box);
+    gtk_box_pack_start(GTK_BOX(content_area), scroll, TRUE, TRUE, 4);
+
+    GtkWidget *note_label = gtk_label_new(
+        "Note: The partition will be remounted read-write to allow password changes.");
+    gtk_box_pack_start(GTK_BOX(content_area), note_label, FALSE, FALSE, 4);
+
+    gtk_widget_show_all(sel_dialog);
+    gint sel_response = gtk_dialog_run(GTK_DIALOG(sel_dialog));
+
+    gchar *chosen_sam = NULL;
+    if (sel_response == GTK_RESPONSE_ACCEPT) {
+        GtkListBoxRow *sel_row = gtk_list_box_get_selected_row(GTK_LIST_BOX(list_box));
+        if (sel_row) {
+            gint idx = gtk_list_box_row_get_index(sel_row);
+            if (idx >= 0 && (guint)idx < sam_paths->len)
+                chosen_sam = g_strdup((gchar *)g_ptr_array_index(sam_paths, idx));
+        }
+    }
+
+    gtk_widget_destroy(sel_dialog);
+    g_ptr_array_free(sam_paths, TRUE);
+
+    if (!chosen_sam) {
+        gchar *umount_cmd = g_strdup_printf("sudo umount %s 2>/dev/null", mount_point);
+        system(umount_cmd);
+        g_free(umount_cmd);
+        g_free(mount_point);
+        g_free(part_path);
+        return;
+    }
+
+    gchar *warn_text = g_strdup_printf(
+        "WARNING: You are about to reset a Windows user password!\n\n"
+        "Partition : %s\n"
+        "SAM file  : %s\n\n"
+        "The chntpw interactive console will open in a terminal.\n"
+        "Instructions:\n"
+        "  1. Select a user from the list\n"
+        "  2. Choose option 1 (Clear/blank password) or 2 (Set new password)\n"
+        "  3. Type 'q' to quit, then 'y' to confirm writing changes\n"
+        "  4. Press Enter when prompted to close the terminal\n\n"
+        "Continue?",
+        part_path, chosen_sam);
+
+    GtkWidget *warn = gtk_message_dialog_new(
+        NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK_CANCEL,
+        "%s", warn_text);
+    gint warn_resp = gtk_dialog_run(GTK_DIALOG(warn));
+    gtk_widget_destroy(warn);
+    g_free(warn_text);
+
+    if (warn_resp != GTK_RESPONSE_OK) {
+        gchar *umount_cmd = g_strdup_printf("sudo umount %s 2>/dev/null", mount_point);
+        system(umount_cmd);
+        g_free(umount_cmd);
+        g_free(chosen_sam);
+        g_free(mount_point);
+        g_free(part_path);
+        return;
+    }
+
+    gchar *remount_rw_cmd = g_strdup_printf(
+        "sudo mount -o remount,rw %s %s 2>/dev/null || "
+        "(sudo umount %s 2>/dev/null && "
+        " sudo mount -t ntfs3   -o rw,uid=0,gid=0 %s %s 2>/dev/null) || "
+        "(sudo umount %s 2>/dev/null && "
+        " sudo mount -t ntfs-3g -o rw,uid=0,gid=0 %s %s 2>/dev/null) || "
+        "(sudo umount %s 2>/dev/null && "
+        " sudo mount -o rw %s %s 2>/dev/null)",
+        part_path, mount_point,
+        mount_point, part_path, mount_point,
+        mount_point, part_path, mount_point,
+        mount_point, part_path, mount_point);
+    system(remount_rw_cmd);
+    g_free(remount_rw_cmd);
+
+    gchar *full_cmd = g_strdup_printf(
+        "echo '============================================' && "
+        "echo '   Windows Password Reset via chntpw' && "
+        "echo '============================================' && "
+        "echo '' && "
+        "echo 'Partition : %s' && "
+        "echo 'SAM file  : %s' && "
+        "echo '' && "
+        "sudo chntpw -i '%s' ; "
+        "echo '' && "
+        "echo '============================================' && "
+        "echo 'Finished. Press Enter to unmount and close.' && "
+        "echo '============================================' && "
+        "read _ && "
+        "sudo umount '%s' 2>/dev/null && "
+        "echo 'Partition unmounted successfully.' || "
+        "echo 'Note: Could not unmount (may already be unmounted).'",
+        part_path, chosen_sam,
+        chosen_sam,
+        mount_point);
+
+    GtkTreeView *main_tree_view = GTK_TREE_VIEW(user_data);
+    run_command_in_terminal(main_tree_view, full_cmd);
+
+    g_free(full_cmd);
+    g_free(chosen_sam);
+    g_free(mount_point);
+    g_free(part_path);
+}
+
 void clean_string(char *str) {
     char *src = str, *dst = str;
     while (*src) {
@@ -4743,7 +5157,7 @@ void on_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColu
     GtkWidget *fs_root = gtk_menu_item_new_with_label("Filesystem & Partition Tools");
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(fs_root), fs_menu);
 
-    GtkWidget *rename_item = gtk_menu_item_new_with_label("Rename Partition (label utility)");
+    GtkWidget *rename_item = gtk_menu_item_new_with_label("Rename Partition (util-linux + fs-utils per type)");
     g_signal_connect(rename_item, "activate", G_CALLBACK(on_rename_partition_activate), tree_view);
     gtk_menu_shell_append(GTK_MENU_SHELL(fs_menu), rename_item);
 
@@ -4751,7 +5165,7 @@ void on_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColu
     g_signal_connect(partition_table_item, "activate", G_CALLBACK(on_partition_table_activate), tree_view);
     gtk_menu_shell_append(GTK_MENU_SHELL(fs_menu), partition_table_item);
 
-    GtkWidget *create_partition_item = gtk_menu_item_new_with_label("Create Partition (parted, lsblk)");
+    GtkWidget *create_partition_item = gtk_menu_item_new_with_label("Create Partition (parted, lsblk) => DANGEROUS! Think carefully before proceeding!");
     g_signal_connect(create_partition_item, "activate", G_CALLBACK(on_show_disk_areas_activate), tree_view);
     gtk_menu_shell_append(GTK_MENU_SHELL(fs_menu), create_partition_item);
 
@@ -4808,6 +5222,10 @@ void on_row_activated(GtkTreeView *tree_view, GtkTreePath *path, GtkTreeViewColu
     GtkWidget *dd_multiple_erase_item = gtk_menu_item_new_with_label("Erase All Data on Selected Disk/Partition with Multiple Overwrites (dd) => DANGEROUS! Think carefully before proceeding!");
     g_signal_connect(dd_multiple_erase_item, "activate", G_CALLBACK(on_dd_multiple_erase_activate), tree_view);
     gtk_menu_shell_append(GTK_MENU_SHELL(delete_menu), dd_multiple_erase_item);
+
+    GtkWidget *btn_reset_pwd_item = gtk_menu_item_new_with_label("Reset Windows User Password (chntpw)");
+    g_signal_connect(btn_reset_pwd_item, "activate", G_CALLBACK(on_reset_windows_password_clicked), tree_view);
+    gtk_menu_shell_append(GTK_MENU_SHELL(delete_menu), btn_reset_pwd_item);
 
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), delete_root);
 
